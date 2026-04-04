@@ -1,0 +1,7 @@
+Metric,AdaBoost (GHI),FI-AdaBoost (solar potential)
+R² on own target (test),1.0,0.9866
+SMAPE on own target (test),0.0,155.87
+MAPE on TRUE solar potential (test),145.31,155.87
+R² on TRUE solar potential (test),-0.0159,0.9866
+Building Differentiation Index (%),1.22,599.96
+DM p-value (energy potential),-,0.0201
