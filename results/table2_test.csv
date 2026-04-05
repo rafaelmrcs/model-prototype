@@ -1,3 +1,3 @@
-Model,Target,RMSE,MAE,R²,SMAPE (%)
-AdaBoost Regression (Baseline),GHI_mean_J (J/m²/day),0.00 J/m²/day,0.00 J/m²/day,1.0,0.0
-FI-AdaBoost Regression (Proposed),solar_energy_potential_J (J/yr),"10,876,697,157.80 J/yr","5,034,184,885.65 J/yr",0.9866,155.87
+Model,RMSE (J/m²/day),MAE  (J/m²/day),RMSE (kWh/m²/day),MAE  (kWh/m²/day),R²
+AdaBoost Regression (Baseline),38619.9,1576.65,0.010728,0.000438,0.9625
+FI-AdaBoost Regression (Proposed),54616.79,3153.3,0.015171,0.000876,0.9251

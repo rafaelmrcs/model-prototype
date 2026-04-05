@@ -414,20 +414,12 @@ def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray,
                     unit: str = "J") -> dict:
     """
     §2.6 Evaluation Metrics.
-    Computes RMSE (§2.6.1), MAE (§2.6.2), R² (§2.6.3), and SMAPE.
-    SMAPE (Symmetric MAPE) is used instead of MAPE because MAPE
-    blows up when actual ≈ 0; SMAPE is bounded to [0, 200%].
+    Computes RMSE (§2.6.1), MAE (§2.6.2), and R² (§2.6.3).
     """
-    rmse  = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-    mae   = float(mean_absolute_error(y_true, y_pred))
-    r2    = float(r2_score(y_true, y_pred))
-    denom = np.abs(y_true) + np.abs(y_pred)
-    ssmape = float(np.mean(
-        np.where(denom > 1e-10,
-                 2 * np.abs(y_true - y_pred) / denom,
-                 0.0)
-    ) * 100)
-    return {"RMSE": rmse, "MAE": mae, "R2": r2, "SMAPE": ssmape, "unit": unit}
+    rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+    mae  = float(mean_absolute_error(y_true, y_pred))
+    r2   = float(r2_score(y_true, y_pred))
+    return {"RMSE": rmse, "MAE": mae, "R2": r2, "unit": unit}
 
 
 def diebold_mariano(e1: np.ndarray, e2: np.ndarray) -> tuple:
@@ -553,8 +545,8 @@ def plot_comparison(ada_m_tr, ada_m_te, fi_m_tr, fi_m_te) -> None:
         (axes[0], "Training Data (Table 1)", ada_m_tr, fi_m_tr),
         (axes[1], "Test Data (Table 2)",     ada_m_te, fi_m_te),
     ]:
-        metrics   = ["RMSE", "MAE", "R2", "SMAPE"]
-        xlabels   = ["RMSE", "MAE", "R²", "SMAPE (%)"]
+        metrics   = ["RMSE", "MAE", "R2"]
+        xlabels   = ["RMSE", "MAE", "R²"]
         # Normalise for plotting (values are on very different scales)
         max_vals  = [max(am[k], fm[k], 1e-10) for k in metrics]
         av_norm   = [am[k] / max_vals[i] for i, k in enumerate(metrics)]
@@ -606,7 +598,7 @@ def plot_scatter_both(y_ada_te, ada_pred_te, y_fi_te, fi_pred_te) -> None:
         m = compute_metrics(y, pred)
         ax.set_title(
             f"{name}\n"
-            f"RMSE={m['RMSE']:,.2f}  R²={m['R2']:.4f}  MAPE={m['SMAPE']:.2f}%",
+            f"RMSE={m['RMSE']:,.2f}  R²={m['R2']:.4f}",
             fontsize=8,
         )
         ax.set_xlabel(xlabel); ax.set_ylabel("Predicted")
@@ -759,16 +751,14 @@ def make_table(ada_m: dict, fi_m: dict,
             "Target":  "GHI_mean_J (J/m²/day)",
             "RMSE":    f"{ada_m['RMSE']:,.2f} J/m²/day",
             "MAE":     f"{ada_m['MAE']:,.2f} J/m²/day",
-            "R²":      round(ada_m["R2"],   4),
-            "SMAPE (%)":round(ada_m["SMAPE"], 2),
+            "R²":      round(ada_m["R2"], 4),
         },
         {
             "Model":   fi_label,
             "Target":  "solar_energy_potential_J (J/yr)",
             "RMSE":    f"{fi_m['RMSE']:,.2f} J/yr",
             "MAE":     f"{fi_m['MAE']:,.2f} J/yr",
-            "R²":      round(fi_m["R2"],   4),
-            "SMAPE (%)":round(fi_m["SMAPE"], 2),
+            "R²":      round(fi_m["R2"], 4),
         },
     ]
     return pd.DataFrame(rows).set_index("Model")
@@ -909,12 +899,7 @@ def main():
     print(f"     AdaBoost   GHI prediction R²                : {ada_te_m['R2']:.4f}")
     print(f"     FI-AdaBoost solar potential prediction R²   : {fi_te_m['R2']:.4f}")
 
-    # b) MAPE comparison
-    print(f"\n  b) SMAPE on respective targets (test set) — bounded [0,200%]:")
-    print(f"     AdaBoost   SMAPE on GHI                      : {ada_te_m['SMAPE']:.2f}%")
-    print(f"     FI-AdaBoost SMAPE on solar potential          : {fi_te_m['SMAPE']:.2f}%")
-
-    # c) Building differentiation index
+    # b) Building differentiation index
     ada_bdi = building_differentiation_index(ada_energy_te)
     fi_bdi  = building_differentiation_index(fi_pred_te)
     print(f"\n  c) Building Differentiation Index (CV of predictions, higher = better):")
@@ -922,21 +907,8 @@ def main():
     print(f"     FI-AdaBoost (direct building prediction)     : {fi_bdi:.2f}%")
     print(f"     Improvement: +{fi_bdi - ada_bdi:.2f} percentage points")
 
-    # d) Solar potential MAPE — compare both against true solar potential
-    # "True" potential uses actual GHI × actual building features
+    # c) Diebold-Mariano on energy potential residuals
     true_potential_te = y_fi_te   # this IS the true per-building potential
-    denom_ada = np.abs(true_potential_te) + np.abs(ada_energy_te)
-    ada_smape_on_potential = float(np.mean(
-        np.where(denom_ada > 1e-10,
-                 2*np.abs(true_potential_te - ada_energy_te)/denom_ada, 0.0)
-    ) * 100)
-    fi_smape_on_potential = fi_te_m["SMAPE"]
-    print(f"\n  d) Both vs TRUE solar energy potential — SMAPE (bounded 0-200%):")
-    print(f"     AdaBoost   SMAPE on true potential            : {ada_smape_on_potential:.2f}%")
-    print(f"     FI-AdaBoost SMAPE on true potential           : {fi_smape_on_potential:.2f}%")
-    print(f"     Improvement: {ada_smape_on_potential - fi_smape_on_potential:.2f} pp reduction in MAPE")
-
-    # e) Diebold-Mariano on energy potential residuals
     # Convert both to kWh/yr for DM test (same unit required)
     true_kwh_te  = true_potential_te / KWH_TO_J
     ada_ep_kwh   = ada_energy_te     / KWH_TO_J
@@ -981,14 +953,6 @@ def main():
         "Metric":                           "R² on own target (test)",
         "AdaBoost (GHI)":                  round(ada_te_m["R2"], 4),
         "FI-AdaBoost (solar potential)":   round(fi_te_m["R2"],  4),
-    },{
-        "Metric":                           "SMAPE on own target (test)",
-        "AdaBoost (GHI)":                  round(ada_te_m["SMAPE"], 2),
-        "FI-AdaBoost (solar potential)":   round(fi_te_m["SMAPE"],  2),
-    },{
-        "Metric":                           "MAPE on TRUE solar potential (test)",
-        "AdaBoost (GHI)":                  round(ada_smape_on_potential, 2),
-        "FI-AdaBoost (solar potential)":   round(fi_smape_on_potential,  2),
     },{
         "Metric":                           "R² on TRUE solar potential (test)",
         "AdaBoost (GHI)":                  round(r2_ada_pot, 4),
